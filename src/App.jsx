@@ -551,12 +551,18 @@ function App() {
                             if (requestingPulseFor) return;
                             setRequestingPulseFor(emp.id);
                             try {
-                              await api.post('/pulses/request', { employeeId: emp.id });
-                              addToast(`📧 Email real enviado a ${emp.email}: Solicitud de pulso.`);
+                              const res = await api.post('/pulses/request', { employeeId: emp.id });
+                              addToast(`📧 Email enviado con éxito.`);
                             } catch (err) {
                               console.error("Request pulse failed", err);
-                              const detail = err.response?.data?.error || err.response?.data?.msg || err.message;
-                              addToast(`❌ Error: ${detail}`);
+                              const link = err.response?.data?.pulseLink;
+                              if (link) {
+                                setFallbackLink({ name: emp.name, link });
+                                addToast(`⚠️ Email bloqueado por Render. Usa el link manual.`);
+                              } else {
+                                const detail = err.response?.data?.error || err.response?.data?.msg || err.message;
+                                addToast(`❌ Error: ${detail}`);
+                              }
                             } finally {
                               setRequestingPulseFor(null);
                             }
