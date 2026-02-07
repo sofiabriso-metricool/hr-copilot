@@ -14,33 +14,39 @@ const sendPulseEmail = async (email, name, link) => {
     if (RESEND_API_KEY) {
         console.log(`🚀 Using Resend API for email to ${email}`);
         try {
-            // Using a simple fetch/axios call to Resend to avoid extra dependencies for now
-            const axios = require('axios');
-            await axios.post('https://api.resend.com/emails', {
-                from: 'HR Co-pilot <onboarding@resend.dev>', // Default for free tier
-                to: email,
-                subject: 'HR Co-pilot: Tu Pulso de Salud Laboral',
-                html: `
-                  <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
-                    <h2 style="color: #6366f1;">Hola ${name},</h2>
-                    <p>Queremos saber cómo te sientes hoy para asegurarnos de que todo va bien.</p>
-                    <p>Por favor, rellena tu pulso haciendo clic en el siguiente botón:</p>
-                    <div style="text-align: center; margin: 30px 0;">
-                      <a href="${link}" style="padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Rellenar mi Pulso 🚀</a>
-                    </div>
-                    <p style="color: #64748b; font-size: 0.9rem;">Este es un mensaje automático de HR Co-pilot. ¡Gracias por tu sinceridad!</p>
-                  </div>
-                `
-            }, {
+            const response = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${RESEND_API_KEY}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    from: 'HR Co-pilot <onboarding@resend.dev>', // Default for free tier
+                    to: email,
+                    subject: 'HR Co-pilot: Tu Pulso de Salud Laboral',
+                    html: `
+                      <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+                        <h2 style="color: #6366f1;">Hola ${name},</h2>
+                        <p>Queremos saber cómo te sientes hoy para asegurarnos de que todo va bien.</p>
+                        <p>Por favor, rellena tu pulso haciendo clic en el siguiente botón:</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                          <a href="${link}" style="padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Rellenar mi Pulso 🚀</a>
+                        </div>
+                        <p style="color: #64748b; font-size: 0.9rem;">Este es un mensaje automático de HR Co-pilot. ¡Gracias por tu sinceridad!</p>
+                      </div>
+                    `
+                })
             });
-            console.log('✅ Resend: Email sent');
-            return;
+
+            if (response.ok) {
+                console.log('✅ Resend: Email sent');
+                return;
+            } else {
+                const errorData = await response.json();
+                console.error('❌ Resend Error:', errorData);
+            }
         } catch (error) {
-            console.error('❌ Resend Error:', error.response?.data || error.message);
+            console.error('❌ Resend Runtime Error:', error.message);
             // Fallback to SMTP if Resend fails
         }
     }
