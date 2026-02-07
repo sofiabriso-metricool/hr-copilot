@@ -11,19 +11,30 @@ app.use((req, res, next) => {
     next();
 });
 
-// CORS configuration
-let allowedOrigin = process.env.FRONTEND_URL || '*';
-if (allowedOrigin.endsWith('/')) {
-    allowedOrigin = allowedOrigin.slice(0, -1);
+// CORS configuration - Ultra-robust to avoid trailing slash mismatches
+let rawOrigin = process.env.FRONTEND_URL || '*';
+const origins = [rawOrigin];
+
+if (rawOrigin !== '*') {
+    if (rawOrigin.endsWith('/')) {
+        origins.push(rawOrigin.slice(0, -1));
+    } else {
+        origins.push(rawOrigin + '/');
+    }
+}
+
+// Ensure the specific URL from the error is also allowed
+if (!origins.includes('https://hr-copilot-mu.vercel.app')) {
+    origins.push('https://hr-copilot-mu.vercel.app');
 }
 
 const corsOptions = {
-    origin: allowedOrigin === '*' ? '*' : [allowedOrigin],
+    origin: rawOrigin === '*' ? '*' : origins,
     credentials: true,
     optionsSuccessStatus: 200
 };
 
-console.log('🛡️ CORS allowed origin:', allowedOrigin);
+console.log('🛡️ CORS allowed origins:', origins);
 app.use(cors(corsOptions));
 app.use(express.json());
 
