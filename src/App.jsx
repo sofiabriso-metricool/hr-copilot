@@ -81,7 +81,14 @@ function App() {
 
     if (token) {
       try {
+        // Basic validation for base64
+        if (!/^[A-Za-z0-9+/=]+$/.test(token)) {
+          throw new Error("Invalid base64 characters");
+        }
+
         const decoded = atob(token).split(':');
+        if (decoded.length < 2) throw new Error("Invalid token format");
+
         const [email, empId] = decoded;
         const targetEmp = employees.find(e => e.email === email && e.id === parseInt(empId));
 
@@ -95,7 +102,7 @@ function App() {
           addToast(`🔗 Acceso por link: Hola ${targetEmp.name}, cuéntanos cómo vas.`);
         }
       } catch (e) {
-        console.error("Invalid token", e);
+        console.error("Invalid token in URL", e);
       }
     }
   }, [employees]);

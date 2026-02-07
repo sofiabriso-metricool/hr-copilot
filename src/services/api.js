@@ -3,13 +3,14 @@ import axios from 'axios';
 // Detect if we're on localhost or network
 const getBaseURL = () => {
     // Production: Use environment variable if available
-    if (import.meta.env.VITE_API_URL) {
-        return import.meta.env.VITE_API_URL;
+    const envURL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+    if (envURL) {
+        return envURL;
     }
 
     // Development: Auto-detect network or localhost
     const hostname = window.location.hostname;
-    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.includes('vercel.app')) {
         return `http://${hostname}:5000/api`;
     }
     return 'http://localhost:5000/api';
