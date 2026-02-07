@@ -17,16 +17,19 @@ const sendPulseEmail = async (email, name, link) => {
     console.log(`📧 Intentando enviar email a: ${email}...`);
 
     let transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false, // Use STARTTLS
         auth: {
             user: EMAIL_USER,
-            pass: EMAIL_PASS // Debe ser una Contraseña de Aplicación de 16 letras
+            pass: EMAIL_PASS
         },
-        connectionTimeout: 30000, // Increase to 30s
-        greetingTimeout: 30000,
-        socketTimeout: 45000,
-        debug: true,
-        logger: true
+        tls: {
+            rejectUnauthorized: false // Helps in restricted cloud envs
+        },
+        connectionTimeout: 20000,
+        greetingTimeout: 20000,
+        socketTimeout: 30000
     });
 
     let mailOptions = {
