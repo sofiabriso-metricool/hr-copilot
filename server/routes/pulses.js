@@ -18,17 +18,17 @@ const sendPulseEmail = async (email, name, link) => {
 
     let transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
-        port: 465,
-        secure: true, // use SSL
+        port: 587,
+        secure: false, // use STARTTLS
         auth: {
             user: EMAIL_USER,
             pass: EMAIL_PASS // Debe ser una Contraseña de Aplicación de 16 letras
         },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 20000,
-        debug: true, // Show debug output
-        logger: true // Log information in console
+        connectionTimeout: 20000,
+        greetingTimeout: 20000,
+        socketTimeout: 30000,
+        debug: true,
+        logger: true
     });
 
     let mailOptions = {
