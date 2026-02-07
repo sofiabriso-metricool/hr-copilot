@@ -7,24 +7,34 @@ const nodemailer = require('nodemailer');
 
 // Helper to send email
 const sendPulseEmail = async (email, name, link) => {
+    const { EMAIL_USER, EMAIL_PASS } = process.env;
+
+    if (!EMAIL_USER || !EMAIL_PASS) {
+        throw new Error('Missing EMAIL_USER or EMAIL_PASS environment variables');
+    }
+
     let transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
+            user: EMAIL_USER,
+            pass: EMAIL_PASS // For Gmail, this must be an App Password if 2FA is enabled
         }
     });
 
     let mailOptions = {
-        from: `"HR Co-pilot" <${process.env.EMAIL_USER}>`,
+        from: `"HR Co-pilot" <${EMAIL_USER}>`,
         to: email,
         subject: 'HR Co-pilot: Tu Pulso de Salud Laboral',
         html: `
-      <h2>Hola ${name},</h2>
-      <p>Queremos saber cómo te sientes hoy para asegurarnos de que todo va bien.</p>
-      <p>Por favor, rellena tu pulso haciendo clic en el siguiente enlace:</p>
-      <a href="${link}" style="padding: 10px 20px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 5px;">Rellenar mi Pulso</a>
-      <p>¡Gracias por tu sinceridad!</p>
+      <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+        <h2 style="color: #6366f1;">Hola ${name},</h2>
+        <p>Queremos saber cómo te sientes hoy para asegurarnos de que todo va bien.</p>
+        <p>Por favor, rellena tu pulso haciendo clic en el siguiente botón:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${link}" style="padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Rellenar mi Pulso 🚀</a>
+        </div>
+        <p style="color: #64748b; font-size: 0.9rem;">Este es un mensaje automático de HR Co-pilot. ¡Gracias por tu sinceridad!</p>
+      </div>
     `
     };
 
@@ -46,7 +56,7 @@ router.post('/request', auth, async (req, res) => {
         res.json({ msg: 'Email sent successfully' });
     } catch (err) {
         console.error(err);
-        res.status(500).send('Server error sending email');
+        res.status(500).json({ msg: 'Server error sending email', error: err.message });
     }
 });
 
