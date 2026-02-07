@@ -119,17 +119,6 @@ function App() {
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('hr_copilot_session', JSON.stringify(currentUser));
-
-      // Simulation pulse logic disabled, only trigger via link
-      /*
-      const needsPulse = currentUser.cadenceDays && (!currentUser.lastSelfPulse ||
-        (new Date() - new Date(currentUser.lastSelfPulse.date)) / (1000 * 60 * 60 * 24) >= currentUser.cadenceDays);
-
-      if (needsPulse) {
-        addToast(`📧 Email enviado a ${currentUser.email}: Recordatorio de pulso pendiente.`);
-        setIsSelfPulseOpen(true);
-      }
-      */
     } else {
       localStorage.removeItem('hr_copilot_session');
     }
@@ -353,13 +342,9 @@ function App() {
     }
   };
 
-
-
   if (!currentUser) {
     return <Login onLogin={handleLogin} onRegister={handleRegisterCompany} error={authError} loading={isAuthLoading} />;
   }
-
-
 
   if (loading) {
     return (
@@ -370,16 +355,6 @@ function App() {
           <p>Conectando con el servidor seguro</p>
         </div>
       </div>
-    );
-  }
-
-  if (!currentUser) {
-    return (
-      <Login
-        onLogin={handleLogin}
-        onRegister={handleRegisterCompany}
-        error={authError}
-      />
     );
   }
 
@@ -397,7 +372,7 @@ function App() {
         </div>
 
         <nav className="header-nav">
-          <button className={`nav-btn ${currentMenu === 'home' ? 'active' : ''}`} onClick={() => setCurrentMenu('home')}>📚 Dashboard</button>
+          <button className={`nav-btn ${currentMenu === 'home' ? 'active' : ''}`} onClick={() => setCurrentMenu('home')}>Dashboard</button>
           <button className={`nav-btn ${currentMenu === 'profile' ? 'active' : ''}`} onClick={() => setCurrentMenu('profile')}>👤 Mi Perfil</button>
         </nav>
 
@@ -553,13 +528,17 @@ function App() {
                             setRequestingPulseFor(emp.id);
                             try {
                               const res = await api.post('/pulses/request', { employeeId: emp.id });
-                              addToast(`📧 Email enviado con éxito.`);
+                              const link = res.data.pulseLink;
+                              if (link) {
+                                setFallbackLink({ name: emp.name, link });
+                              }
+                              addToast(`📧 Procesando envío manual/automático.`);
                             } catch (err) {
                               console.error("Request pulse failed", err);
                               const link = err.response?.data?.pulseLink;
                               if (link) {
                                 setFallbackLink({ name: emp.name, link });
-                                addToast(`⚠️ Email bloqueado por Render. Usa el link manual.`);
+                                addToast(`⚠️ Backup: Generado link manual.`);
                               } else {
                                 const detail = err.response?.data?.error || err.response?.data?.msg || err.message;
                                 addToast(`❌ Error: ${detail}`);
@@ -593,7 +572,7 @@ function App() {
             <header className="modal-header">
               <h3>🔗 Link de Pulso para {fallbackLink.name}</h3>
             </header>
-            <p>El servidor ha bloqueado el envío del email (Proxy de Render), pero puedes enviarle este link manualmente por WhatsApp o Slack:</p>
+            <p>Se ha generado el link de pulso. Pulsa el botón para copiarlo y envíaselo por WhatsApp o Slack:</p>
             <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '5px', wordBreak: 'break-all', margin: '15px 0', fontSize: '14px' }}>
               {fallbackLink.link}
             </div>
