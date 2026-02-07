@@ -224,8 +224,9 @@ function App() {
       const empRes = await api.get('/employees');
       setEmployees(empRes.data);
     } catch (err) {
-      console.error("Login Error:", err);
-      setAuthError(err.response?.data?.msg || 'Error al iniciar sesión. Comprueba tu conexión.');
+      console.error("Login Error details:", err);
+      const detail = err.response?.data?.msg || err.message;
+      setAuthError(`${detail}. Revisa la consola (F12) para más detalles.`);
     } finally {
       setIsAuthLoading(false);
     }

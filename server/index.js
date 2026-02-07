@@ -1,13 +1,15 @@
 require('dotenv').config();
 const express = require('express');
-const dns = require('dns');
-if (dns.setServers) {
-    dns.setServers(['8.8.8.8', '8.8.4.4']);
-}
 const cors = require('cors');
 const mongoose = require('mongoose');
 
 const app = express();
+
+// DEBUG: Log all requests to help troubleshooting in Render
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+    next();
+});
 
 // CORS configuration
 let allowedOrigin = process.env.FRONTEND_URL || '*';
@@ -16,7 +18,7 @@ if (allowedOrigin.endsWith('/')) {
 }
 
 const corsOptions = {
-    origin: allowedOrigin,
+    origin: allowedOrigin === '*' ? '*' : [allowedOrigin],
     credentials: true,
     optionsSuccessStatus: 200
 };
@@ -46,5 +48,4 @@ app.get('/', (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📱 Network access: http://192.168.1.41:${PORT}`);
 });
