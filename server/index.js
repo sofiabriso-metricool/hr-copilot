@@ -9,13 +9,19 @@ const mongoose = require('mongoose');
 
 const app = express();
 
-// CORS configuration for production
+// CORS configuration
+let allowedOrigin = process.env.FRONTEND_URL || '*';
+if (allowedOrigin.endsWith('/')) {
+    allowedOrigin = allowedOrigin.slice(0, -1);
+}
+
 const corsOptions = {
-    origin: process.env.FRONTEND_URL || '*',
+    origin: allowedOrigin,
     credentials: true,
     optionsSuccessStatus: 200
 };
 
+console.log('🛡️ CORS allowed origin:', allowedOrigin);
 app.use(cors(corsOptions));
 app.use(express.json());
 
