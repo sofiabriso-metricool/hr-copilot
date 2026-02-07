@@ -554,7 +554,8 @@ function App() {
                               addToast(`📧 Email real enviado a ${emp.email}: Solicitud de pulso.`);
                             } catch (err) {
                               console.error("Request pulse failed", err);
-                              addToast(`❌ Error al enviar email a ${emp.name}`);
+                              const detail = err.response?.data?.error || err.response?.data?.msg || err.message;
+                              addToast(`❌ Error: ${detail}`);
                             } finally {
                               setRequestingPulseFor(null);
                             }
