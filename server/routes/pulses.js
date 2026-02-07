@@ -7,26 +7,28 @@ const nodemailer = require('nodemailer');
 
 // Helper to send email
 const sendPulseEmail = async (email, name, link) => {
-    const { EMAIL_USER, EMAIL_PASS, SIMULATION_MODE } = process.env;
-
-    if (SIMULATION_MODE === 'true') {
-        console.log(`[SIMULATION] Sending email to ${email} with link: ${link}`);
-        return { messageId: 'simulated-id' };
-    }
+    const { EMAIL_USER, EMAIL_PASS } = process.env;
 
     if (!EMAIL_USER || !EMAIL_PASS) {
-        throw new Error('Missing EMAIL_USER or EMAIL_PASS environment variables');
+        console.error('❌ EMAIL ERROR: Missing EMAIL_USER or EMAIL_PASS');
+        throw new Error('Variables de entorno EMAIL_USER o EMAIL_PASS no configuradas en Render.');
     }
 
+    console.log(`📧 Intentando enviar email a: ${email}...`);
+
     let transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // use SSL
         auth: {
             user: EMAIL_USER,
-            pass: EMAIL_PASS // For Gmail, this must be an App Password if 2FA is enabled
+            pass: EMAIL_PASS // Debe ser una Contraseña de Aplicación de 16 letras
         },
-        connectionTimeout: 10000, // 10 seconds
-        greetingTimeout: 5000,
-        socketTimeout: 15000
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 20000,
+        debug: true, // Show debug output
+        logger: true // Log information in console
     });
 
     let mailOptions = {
@@ -46,7 +48,14 @@ const sendPulseEmail = async (email, name, link) => {
     `
     };
 
-    return transporter.sendMail(mailOptions);
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Email enviado con éxito:', info.messageId);
+        return info;
+    } catch (error) {
+        console.error('❌ Error detallado de Nodemailer:', error);
+        throw error;
+    }
 };
 
 // @route   POST api/pulses/request
