@@ -2,13 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import api from './services/api';
 import {
-  diagnoseStatus,
   getResolution,
   getSubordinates,
   getAllNestedSubordinates,
   getAlerts
 } from './logic/engine';
 import Login from './components/Login';
+import MyProfile from './components/MyProfile';
+import RadarModal from './components/RadarModal';
+import SelfPulseModal from './components/SelfPulseModal';
+import AddEmployeeModal from './components/AddEmployeeModal';
+import CaptureModal from './components/CaptureModal';
+import ResolutionModal from './components/ResolutionModal';
+import HelpModal from './components/HelpModal';
 
 const AVATARS = ['👨‍💻', '👩‍💼', '🎨', '👨‍💼', '👩‍💻', '🚀', '✨', '🧠', '👑'];
 
@@ -133,7 +139,7 @@ function App() {
   );
 
   const currentViewEmployees = useMemo(() =>
-    viewedManagerId ? companyEmployees.filter(e => e.managerId === viewedManagerId) : [],
+    viewedManagerId ? companyEmployees.filter(e => Number(e.managerId) === Number(viewedManagerId)) : [],
     [companyEmployees, viewedManagerId]
   );
 
@@ -259,7 +265,7 @@ function App() {
   const handleCaptureSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.post('/pulses/manager', {
+      await api.post('/pulses/manager', {
         employeeId: selectedCaptureEmp.id,
         ...captureData
       });
@@ -272,6 +278,7 @@ function App() {
       addToast(`🚀 Evaluación de manager guardada para ${selectedCaptureEmp.name}`);
       setCaptureData({ mood: 5, alignment: 5, energy: 5, blockers: [] });
     } catch (err) {
+      console.error("Capture submit failed", err);
       addToast(`❌ Error al guardar captura`);
     }
   };
@@ -291,6 +298,7 @@ function App() {
       addToast(`✅ Tu pulso ha sido enviado. ¡Gracias por tu sinceridad!`);
       setSelfPulseData({ mood: 5, alignment: 5, energy: 5, blockers: [], comments: '' });
     } catch (err) {
+      console.error("Self pulse submit failed", err);
       addToast(`❌ Error al enviar pulso`);
     }
   };
@@ -301,6 +309,7 @@ function App() {
       const empRes = await api.get('/employees');
       setEmployees(empRes.data);
     } catch (err) {
+      console.error("Checklist update failed", err);
       addToast(`❌ Error al actualizar checklist`);
     }
   };
@@ -308,14 +317,31 @@ function App() {
   const handleAddEmployee = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/employees', newEmployee);
+      // Ensure we have a valid managerId, default to currentUser.id if viewedManagerId is null
+      const managerId = viewedManagerId || currentUser.id;
+      await api.post('/employees', { ...newEmployee, managerId });
+
       const empRes = await api.get('/employees');
       setEmployees(empRes.data);
       setIsAddOpen(false);
       setNewEmployee({ name: '', role: '', avatar: AVATARS[0], email: '', password: '123' });
       addToast(`👤 Nuevo empleado añadido: ${newEmployee.name}`);
     } catch (err) {
+      console.error("Add employee failed", err);
       addToast(`❌ Error al añadir empleado`);
+    }
+  };
+
+  const handleDeleteEmployee = async (empId, empName) => {
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar a ${empName}?`)) return;
+    try {
+      await api.delete(`/employees/${empId}`);
+      const empRes = await api.get('/employees');
+      setEmployees(empRes.data);
+      addToast(`🗑️ ${empName} ha sido eliminado.`);
+    } catch (err) {
+      console.error("Delete employee failed", err);
+      addToast(`❌ ${err.response?.data?.msg || 'Error al eliminar empleado'}`);
     }
   };
 
@@ -325,63 +351,7 @@ function App() {
     return <Login onLogin={handleLogin} onRegister={handleRegisterCompany} error={authError} />;
   }
 
-  // Personal Profile View Component
-  const MyProfileView = () => (
-    <section className="profile-dashboard">
-      <div className="profile-hero glass-card">
-        <div className="profile-user">
-          <span className="profile-avatar">{currentUser.avatar}</span>
-          <div className="profile-info">
-            <h2>{currentUser.name}</h2>
-            <p>{currentUser.role}</p>
-          </div>
-        </div>
-        <div className={`profile-status-badge badge-${currentUser.status}`}>
-          {currentUser.status.toUpperCase()}
-        </div>
-      </div>
 
-      <div className="profile-grid">
-        <div className="glass-card personal-stats">
-          <h3>Mi Salud Laboral 📊</h3>
-          <div className="trend-line large">
-            {currentUser.statusHistory?.map((s, idx) => (
-              <span key={idx} className={`trend-dot dot-${s} large`}></span>
-            ))}
-            <span className={`trend-dot dot-${currentUser.status} current large`}></span>
-          </div>
-          <p className="status-desc">
-            {currentUser.status === 'ok' ? 'Estás en un gran momento. ¡Sigue así! ✨' :
-              currentUser.status === 'attention' ? 'Hay algunos puntos que requieren tu atención. ⚠️' :
-                'Pide ayuda. Estamos aquí para apoyarte. 🆘'}
-          </p>
-          {currentUser.lastSelfPulse && (
-            <div className="last-pulse-info">
-              <small>Último pulso enviado: <b>{currentUser.lastSelfPulse.date}</b></small>
-            </div>
-          )}
-        </div>
-
-        {companyEmployees.filter(e => e.managerId === currentUser.id).length > 0 && (
-          <div className="glass-card my-team-list">
-            <h3>Mis Subordinados 👥</h3>
-            <div className="mini-employee-list">
-              {companyEmployees.filter(e => e.managerId === currentUser.id).map(emp => (
-                <div key={emp.id} className="mini-emp-item" onClick={() => {
-                  setViewedManagerId(emp.id);
-                  setHistory([...history, emp]);
-                  setCurrentMenu('home');
-                }}>
-                  <span>{emp.avatar} {emp.name}</span>
-                  <span className={`badge badge-sm badge-${emp.status}`}>{emp.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
-  );
 
   if (loading) {
     return (
@@ -432,7 +402,16 @@ function App() {
       </header>
 
       <main className="dashboard">
-        {currentMenu === 'profile' ? <MyProfileView /> : (
+        {currentMenu === 'profile' ? (
+          <MyProfile
+            currentUser={currentUser}
+            companyEmployees={companyEmployees}
+            setViewedManagerId={setViewedManagerId}
+            setHistory={setHistory}
+            setCurrentMenu={setCurrentMenu}
+            history={history}
+          />
+        ) : (
           <>
             {/* Alert Radar */}
             {companyAlerts.length > 0 && (
@@ -564,10 +543,12 @@ function App() {
                             await api.post('/pulses/request', { employeeId: emp.id });
                             addToast(`📧 Email real enviado a ${emp.email}: Solicitud de pulso.`);
                           } catch (err) {
+                            console.error("Request pulse failed", err);
                             addToast(`❌ Error al enviar email a ${emp.name}`);
                           }
                         }} title="Solicitar Pulso">✉️</button>
                         <button className="btn-text" onClick={() => { setActiveRes(getResolution(emp.status)); setResEmployeeId(emp.id); }}>Guía 💡</button>
+                        <button className="btn-icon delete-btn" onClick={() => handleDeleteEmployee(emp.id, emp.name)} title="Eliminar">🗑️</button>
                       </td>
                     </tr>
                   ))}
@@ -579,183 +560,23 @@ function App() {
       </main>
 
       {/* Modals */}
-      {/* Radar Modal with Comparison */}
-      {isRadarOpen && selectedRadarEmp && (
-        <div className="modal-overlay">
-          <div className="glass-card modal-content radar-modal">
-            <header className="res-header">
-              <div className="user-info">
-                <span className="user-avatar">{selectedRadarEmp.avatar}</span>
-                <div className="user-details">
-                  <div className="user-name-line">
-                    <strong>{selectedRadarEmp.name}</strong>
-                  </div>
-                  <span className="user-role">{selectedRadarEmp.role}</span>
-                </div>
-              </div>
-              <button className="close-btn" onClick={() => setIsRadarOpen(false)}>×</button>
-            </header>
+      <RadarModal
+        isOpen={isRadarOpen}
+        employee={selectedRadarEmp}
+        onClose={() => setIsRadarOpen(false)}
+        onOpenResolution={(emp) => {
+          setActiveRes(getResolution(emp.status));
+          setResEmployeeId(emp.id);
+        }}
+      />
 
-            <div className="radar-body">
-              <div className="radar-title-row">
-                <h3 className="radar-title">Sincronía Boss vs Yo 📡</h3>
-                <span className="sync-legend">
-                  <span className="legend-item"><span className="dot dot-manager"></span> Jefe</span>
-                  <span className="legend-item"><span className="dot dot-self"></span> Yo</span>
-                </span>
-              </div>
-              <p className="modal-subtitle">Último cruce de datos: {selectedRadarEmp.lastPulse?.date || 'Sin datos'}</p>
-
-              <div className="radar-metrics">
-                {[
-                  { label: 'Ánimo 😊', manager: selectedRadarEmp.lastPulse?.mood || 0, self: selectedRadarEmp.lastSelfPulse?.mood || 0 },
-                  { label: 'Alineación 🚀', manager: selectedRadarEmp.lastPulse?.alignment || 0, self: selectedRadarEmp.lastSelfPulse?.alignment || 0 },
-                  { label: 'Energía ⚡', manager: selectedRadarEmp.lastPulse?.energy || 0, self: selectedRadarEmp.lastSelfPulse?.energy || 0 }
-                ].map((m, i) => {
-                  const isGap = Math.abs(m.manager - m.self) >= 2;
-                  return (
-                    <div key={i} className={`radar-metric comparison ${isGap ? 'gap-warning' : ''}`}>
-                      <div className="metric-info">
-                        <span>{m.label} {isGap && <span className="gap-tag">Brecha!</span>}</span>
-                        <span className="vals">{m.manager} / {m.self}</span>
-                      </div>
-                      <div className="dual-progress">
-                        <div className="progress-bar mini">
-                          <div className="fill manager" style={{ width: `${(m.manager / 5) * 100}%` }}></div>
-                        </div>
-                        <div className="progress-bar mini">
-                          <div className="fill self" style={{ width: `${(m.self / 5) * 100}%` }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {(selectedRadarEmp.lastPulse?.blockers?.length > 0 || selectedRadarEmp.lastSelfPulse?.blockers?.length > 0) && (
-                <div className="radar-blockers">
-                  <h4>Bloqueadores Detectados 🛑</h4>
-                  <div className="blocker-comparison">
-                    <div className="blocker-side">
-                      <small>Mi Percepción:</small>
-                      <div className="blocker-tags">
-                        {selectedRadarEmp.lastPulse?.blockers?.map(b => <span key={b} className="blocker-tag manager">{b}</span>)}
-                      </div>
-                    </div>
-                    <div className="blocker-side">
-                      <small>Realidad Empleado:</small>
-                      <div className="blocker-tags">
-                        {selectedRadarEmp.lastSelfPulse?.blockers?.map(b => <span key={b} className="blocker-tag active">{b}</span>)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedRadarEmp.lastSelfPulse?.comments && (
-                <div className="radar-comments">
-                  <h4>Comentario del Empleado 💬</h4>
-                  <blockquote className="comment-box">{selectedRadarEmp.lastSelfPulse.comments}</blockquote>
-                </div>
-              )}
-            </div>
-
-            <div className="modal-actions">
-              <button className="btn btn-primary btn-block" onClick={() => {
-                setIsRadarOpen(false);
-                setActiveRes(getResolution(selectedRadarEmp.status));
-                setResEmployeeId(selectedRadarEmp.id);
-              }}>Abrir Guía de Resolución 💡</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Self Pulse Modal */}
-      {isSelfPulseOpen && (
-        <div className="modal-overlay">
-          <div className="glass-card modal-content pulse-modal highlight-border">
-            <header className="res-header">
-              <h3>Tu Pulso de Sincronía ✨</h3>
-              <p>Ayúdanos a entender cómo te sientes realmente</p>
-            </header>
-
-            <form onSubmit={handleSelfPulseSubmit}>
-              <div className="capture-flow">
-                <div className="capture-group">
-                  <label>1. ¿Cómo te sientes hoy realmente? 😊</label>
-                  <div className="option-picker">
-                    {[1, 2, 3, 4, 5].map(v => (
-                      <button key={v} type="button" className={`option-btn ${selfPulseData.mood === v ? 'active' : ''}`} onClick={() => setSelfPulseData({ ...selfPulseData, mood: v })}>{v}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="capture-group">
-                  <label>2. ¿Sientes que estás alineado con el equipo? 🚀</label>
-                  <div className="option-picker">
-                    {[1, 2, 3, 4, 5].map(v => (
-                      <button key={v} type="button" className={`option-btn ${selfPulseData.alignment === v ? 'active' : ''}`} onClick={() => setSelfPulseData({ ...selfPulseData, alignment: v })}>{v}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="capture-group">
-                  <label>3. ¿Cuál es tu nivel de energía actual? ⚡</label>
-                  <div className="option-picker">
-                    {[1, 2, 3, 4, 5].map(v => (
-                      <button key={v} type="button" className={`option-btn ${selfPulseData.energy === v ? 'active' : ''}`} onClick={() => setSelfPulseData({ ...selfPulseData, energy: v })}>{v}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="capture-group">
-                  <label>4. ¿Qué te está bloqueando? (opcional) 🛑</label>
-                  <div className="blocker-tags">
-                    {[
-                      { id: 'boss', label: '👨‍💼 Jefe/Liderazgo' },
-                      { id: 'resources', label: '🛠️ Recursos' },
-                      { id: 'processes', label: '📈 Procesos' },
-                      { id: 'time', label: '⏳ Tiempo' },
-                      { id: 'team', label: '🤝 Equipo' },
-                      { id: 'personal', label: '🌍 Personal/Externo' }
-                    ].map(tag => (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        className={`blocker-tag ${selfPulseData.blockers.includes(tag.id) ? 'active' : ''}`}
-                        onClick={() => {
-                          const newBlockers = selfPulseData.blockers.includes(tag.id)
-                            ? selfPulseData.blockers.filter(b => b !== tag.id)
-                            : [...selfPulseData.blockers, tag.id];
-                          setSelfPulseData({ ...selfPulseData, blockers: newBlockers });
-                        }}
-                      >
-                        {tag.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>5. Comentarios opcionales (solo para tu manager) 💬</label>
-                  <textarea
-                    className="modern-input"
-                    placeholder="Algo que quieras compartir..."
-                    value={selfPulseData.comments}
-                    onChange={e => setSelfPulseData({ ...selfPulseData, comments: e.target.value })}
-                    style={{ minHeight: '80px' }}
-                  />
-                </div>
-              </div>
-
-              <div className="modal-actions">
-                <button type="submit" className="btn btn-primary btn-block">Enviar Pulso 🚀</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <SelfPulseModal
+        isOpen={isSelfPulseOpen}
+        selfPulseData={selfPulseData}
+        setSelfPulseData={setSelfPulseData}
+        onSubmit={handleSelfPulseSubmit}
+        onClose={() => setIsSelfPulseOpen(false)}
+      />
 
       {/* Toast Container */}
       <div className="toast-container">
@@ -767,308 +588,36 @@ function App() {
         ))}
       </div>
 
-      {isAddOpen && (
-        <div className="modal-overlay">
-          <div className="glass-card modal-content">
-            <h3>Incorporar Talento 🚀</h3>
-            <form onSubmit={handleAddEmployee}>
-              <div className="form-group"><label>Nombre</label><input type="text" onChange={e => setNewEmployee({ ...newEmployee, name: e.target.value })} className="modern-input" required /></div>
-              <div className="form-group"><label>Puesto</label><input type="text" onChange={e => setNewEmployee({ ...newEmployee, role: e.target.value })} className="modern-input" required /></div>
-              <div className="form-group"><label>Email</label><input type="email" onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })} className="modern-input" required /></div>
-              <div className="modal-actions">
-                <button type="button" className="btn" onClick={() => setIsAddOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Crear</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <AddEmployeeModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onSubmit={handleAddEmployee}
+        newEmployee={newEmployee}
+        setNewEmployee={setNewEmployee}
+        avatars={AVATARS}
+      />
 
-      {isCaptureOpen && (
-        <div className="modal-overlay">
-          <div className="glass-card modal-content capture-modal">
-            <h3>Captura Invisible: {selectedCaptureEmp?.name}</h3>
-            <p className="modal-subtitle">Evalúa el estado actual de {selectedCaptureEmp?.name.split(' ')[0]}</p>
+      <CaptureModal
+        isOpen={isCaptureOpen}
+        onClose={() => setIsCaptureOpen(false)}
+        onSubmit={handleCaptureSubmit}
+        employee={selectedCaptureEmp}
+        captureData={captureData}
+        setCaptureData={setCaptureData}
+      />
 
-            <form onSubmit={handleCaptureSubmit}>
-              <div className="capture-flow">
-                {/* Mood Question */}
-                <div className="capture-group">
-                  <label>1. Ánimo percibido</label>
-                  <div className="option-picker">
-                    {[
-                      { v: 1, e: '😫', l: 'Muy bajo / Agotado' },
-                      { v: 2, e: '🙁', l: 'Desanimado / Frustrado' },
-                      { v: 3, e: '😐', l: 'Estable / Neutral' },
-                      { v: 4, e: '🙂', l: 'Motivado / Positivo' },
-                      { v: 5, e: '🤩', l: '¡A tope! / Inspirado' }
-                    ].map(opt => (
-                      <button
-                        key={opt.v}
-                        type="button"
-                        title={opt.l}
-                        className={`option-btn ${captureData.mood === opt.v ? 'active' : ''}`}
-                        onClick={() => setCaptureData({ ...captureData, mood: opt.v })}
-                      >
-                        {opt.e}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+      <ResolutionModal
+        isOpen={!!activeRes}
+        onClose={() => setActiveRes(null)}
+        activeRes={activeRes}
+        employee={resEmployee}
+        onToggleChecklist={toggleChecklistItem}
+      />
 
-                {/* Alignment Question */}
-                <div className="capture-group">
-                  <label>2. Alineación con objetivos</label>
-                  <div className="option-picker">
-                    {[
-                      { v: 1, e: '🛑', l: 'Desconectado / Sin rumbo' },
-                      { v: 2, e: '⚠️', l: 'Desalineado / Dudas' },
-                      { v: 3, e: '🆗', l: 'Alineado / Cumple' },
-                      { v: 4, e: '📈', l: 'Muy alineado / Proactivo' },
-                      { v: 5, e: '🚀', l: 'Total sinergia / Líder' }
-                    ].map(opt => (
-                      <button
-                        key={opt.v}
-                        type="button"
-                        title={opt.l}
-                        className={`option-btn ${captureData.alignment === opt.v ? 'active' : ''}`}
-                        onClick={() => setCaptureData({ ...captureData, alignment: opt.v })}
-                      >
-                        {opt.e}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Energy Question */}
-                <div className="capture-group">
-                  <label>3. Nivel de energía / carga</label>
-                  <div className="option-picker">
-                    {[
-                      { v: 1, e: '🪫', l: 'Al límite / Sin batería' },
-                      { v: 2, e: '🥱', l: 'Sobrecargado / Cansado' },
-                      { v: 3, e: '🔋', l: 'Energía estable' },
-                      { v: 4, e: '⚡', l: 'Con foco / Alta energía' },
-                      { v: 5, e: '💥', l: 'Máximo potencial / Flow' }
-                    ].map(opt => (
-                      <button
-                        key={opt.v}
-                        type="button"
-                        title={opt.l}
-                        className={`option-btn ${captureData.energy === opt.v ? 'active' : ''}`}
-                        onClick={() => setCaptureData({ ...captureData, energy: opt.v })}
-                      >
-                        {opt.e}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="capture-group">
-                  <label>Bloqueadores (puedes elegir varios)</label>
-                  <div className="blocker-tags">
-                    {[
-                      { id: 'boss', label: '👨‍💼 Jefe/Liderazgo' },
-                      { id: 'resources', label: '🛠️ Recursos' },
-                      { id: 'processes', label: '📈 Procesos' },
-                      { id: 'time', label: '⏳ Tiempo' },
-                      { id: 'team', label: '🤝 Equipo' },
-                      { id: 'personal', label: '🌍 Personal/Externo' }
-                    ].map(tag => (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        className={`blocker-tag ${captureData.blockers.includes(tag.id) ? 'active' : ''}`}
-                        onClick={() => {
-                          const newBlockers = captureData.blockers.includes(tag.id)
-                            ? captureData.blockers.filter(b => b !== tag.id)
-                            : [...captureData.blockers, tag.id];
-                          setCaptureData({ ...captureData, blockers: newBlockers });
-                        }}
-                      >
-                        {tag.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn" onClick={() => setIsCaptureOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Guardar Señales</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {activeRes && (
-        <div className="modal-overlay" onClick={() => setActiveRes(null)}>
-          <div className="glass-card modal-content resolution-modal" onClick={e => e.stopPropagation()}>
-            <header className="res-header">
-              <h3>{activeRes.title}</h3>
-              <button className="close-btn" onClick={() => setActiveRes(null)}>✕</button>
-            </header>
-            <div className="res-body">
-              <h4>Acciones Pendientes ✅</h4>
-              <ul className="interactive-checklist">
-                {activeRes.steps.map((step, i) => (
-                  <li
-                    key={i}
-                    className={resEmployee?.checklists?.[activeRes.id]?.includes(i) ? 'completed' : ''}
-                    onClick={() => toggleChecklistItem(resEmployee.id, activeRes.id, i)}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={resEmployee?.checklists?.[activeRes.id]?.includes(i) || false}
-                      readOnly
-                    />
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ul>
-              <h4>Guion Sugerido 💬</h4>
-              <blockquote className="script-box">{activeRes.script.replace('[Nombre]', resEmployee?.name)}</blockquote>
-
-              {activeRes.resources && (
-                <div className="resources-section">
-                  <h4>¿Quieres profundizar? 📚</h4>
-                  <div className="resources-grid">
-                    {activeRes.resources.map((res, i) => (
-                      <a key={i} href={res.url} target="_blank" rel="noopener noreferrer" className="resource-card">
-                        <span className="res-icon">{res.icon}</span>
-                        <div className="res-info">
-                          <span className="res-title">{res.title}</span>
-                          <span className="res-type">{res.type.toUpperCase()}</span>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="modal-actions">
-              <button className="btn btn-primary" onClick={() => setActiveRes(null)}>Guardar Progreso</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Help Modal - Explanation of Calculations */}
-      {isHelpOpen && (
-        <div className="modal-overlay" onClick={() => setIsHelpOpen(false)}>
-          <div className="glass-card modal-content resolution-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px' }}>
-            <header className="res-header">
-              <h3>📊 ¿Cómo se Calculan las Métricas?</h3>
-              <button className="close-btn" onClick={() => setIsHelpOpen(false)}>✕</button>
-            </header>
-            <div className="res-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-
-              <h4>🎯 Estados del Empleado (OK, Ojo, Riesgo)</h4>
-              <p>El estado de cada empleado se calcula automáticamente basándose en las capturas del manager y/o del propio empleado:</p>
-
-              <div className="script-box" style={{ marginBottom: '20px' }}>
-                <strong>🔴 RIESGO</strong> - Se activa cuando:
-                <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
-                  <li>Ánimo, Alineación o Energía ≤ 2 (de 5)</li>
-                  <li>Tiene 2 o más bloqueadores activos</li>
-                  <li>Divergencia crítica: Diferencia ≥ 3 puntos entre percepción manager y empleado</li>
-                </ul>
-              </div>
-
-              <div className="script-box" style={{ marginBottom: '20px', background: 'rgba(251, 191, 36, 0.1)' }}>
-                <strong>🟡 OJO (Atención)</strong> - Se activa cuando:
-                <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
-                  <li>Ánimo, Alineación o Energía = 3 (de 5)</li>
-                  <li>Tiene exactamente 1 bloqueador</li>
-                  <li>Divergencia moderada: Diferencia ≥ 2 puntos entre percepción manager y empleado</li>
-                </ul>
-              </div>
-
-              <div className="script-box" style={{ marginBottom: '20px', background: 'rgba(34, 197, 94, 0.1)' }}>
-                <strong>🟢 OK</strong> - Se activa cuando:
-                <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
-                  <li>Ánimo, Alineación y Energía ≥ 4 (de 5)</li>
-                  <li>Sin bloqueadores o bloqueadores resueltos</li>
-                  <li>Buena sincronía entre manager y empleado</li>
-                </ul>
-              </div>
-
-              <hr style={{ margin: '30px 0', opacity: 0.2 }} />
-
-              <h4>📈 Visión Agregada del Equipo</h4>
-              <p>Estas métricas se calculan promediando los datos de <strong>todos los subordinados directos e indirectos</strong> del manager actual:</p>
-
-              <div className="script-box" style={{ marginBottom: '15px' }}>
-                <strong>😊 Clima</strong>
-                <p style={{ marginTop: '8px' }}>Promedio del "Ánimo" de todos los empleados, convertido a porcentaje (1-5 → 0-100%).</p>
-                <code style={{ display: 'block', marginTop: '8px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
-                  Clima = (Suma de Ánimos / (Nº Empleados × 5)) × 100
-                </code>
-              </div>
-
-              <div className="script-box" style={{ marginBottom: '15px' }}>
-                <strong>🚀 Alineación</strong>
-                <p style={{ marginTop: '8px' }}>Promedio de la "Alineación con objetivos" de todos los empleados, en porcentaje.</p>
-                <code style={{ display: 'block', marginTop: '8px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
-                  Alineación = (Suma de Alineaciones / (Nº Empleados × 5)) × 100
-                </code>
-              </div>
-
-              <div className="script-box" style={{ marginBottom: '15px' }}>
-                <strong>⚡ Energía</strong>
-                <p style={{ marginTop: '8px' }}>Promedio del "Nivel de energía" de todos los empleados, en porcentaje.</p>
-                <code style={{ display: 'block', marginTop: '8px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
-                  Energía = (Suma de Energías / (Nº Empleados × 5)) × 100
-                </code>
-              </div>
-
-              <div className="script-box" style={{ marginBottom: '15px' }}>
-                <strong>🏃‍♂️ Riesgo</strong>
-                <p style={{ marginTop: '8px' }}>Porcentaje de empleados en estado de RIESGO sobre el total del equipo.</p>
-                <code style={{ display: 'block', marginTop: '8px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
-                  Riesgo = (Empleados en RIESGO / Total Empleados) × 100
-                </code>
-              </div>
-
-              <hr style={{ margin: '30px 0', opacity: 0.2 }} />
-
-              <h4>🛰️ Sincronía (Radar de Divergencia)</h4>
-              <p>Compara la percepción del <strong>manager</strong> vs. la <strong>realidad del empleado</strong>:</p>
-
-              <div className="script-box" style={{ marginBottom: '15px' }}>
-                <strong>🎯 Sincronía Perfecta</strong>
-                <p style={{ marginTop: '8px' }}>Cuando la diferencia en Ánimo, Alineación y Energía es 0 puntos.</p>
-              </div>
-
-              <div className="script-box" style={{ marginBottom: '15px', background: 'rgba(251, 191, 36, 0.1)' }}>
-                <strong>📡 Falta de Sincronía Leve</strong>
-                <p style={{ marginTop: '8px' }}>Diferencia de 2 puntos en cualquier dimensión.</p>
-              </div>
-
-              <div className="script-box" style={{ marginBottom: '15px', background: 'rgba(239, 68, 68, 0.1)' }}>
-                <strong>🛰️ Divergencia Crítica</strong>
-                <p style={{ marginTop: '8px' }}>Diferencia de 3 o más puntos. <strong>¡Alerta prioritaria!</strong> Indica desconexión entre manager y empleado.</p>
-              </div>
-
-              <hr style={{ margin: '30px 0', opacity: 0.2 }} />
-
-              <h4>💡 Notas Importantes</h4>
-              <ul style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
-                <li><strong>Captura Invisible:</strong> Solo el manager evalúa al empleado (percepción externa).</li>
-                <li><strong>Pulso del Empleado:</strong> El empleado se autoevalúa (realidad interna).</li>
-                <li><strong>Sincronía:</strong> Solo se calcula cuando existen AMBAS capturas (manager + empleado).</li>
-                <li><strong>Actualización:</strong> Los estados se recalculan automáticamente tras cada captura.</li>
-                <li><strong>Historial:</strong> Se mantiene un registro de estados previos para detectar tendencias.</li>
-              </ul>
-
-            </div>
-            <div className="modal-actions">
-              <button className="btn btn-primary" onClick={() => setIsHelpOpen(false)}>Entendido 👍</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+      />
     </div>
   );
 }

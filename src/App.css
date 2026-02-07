@@ -404,6 +404,12 @@ body {
 
 .delete-btn:hover {
   background: #fee2e2;
+  color: #ef4444;
+}
+
+.delete-btn i,
+.delete-btn span {
+  color: inherit;
 }
 
 .btn-text {

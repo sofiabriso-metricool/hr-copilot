@@ -2,69 +2,6 @@
  * HR Co-pilot Logic Engine
  */
 
-export const DEFAULT_EMPLOYEES = [
-    {
-        id: 1, name: 'Sonia Soler', role: 'CEO & Founder', status: 'ok', avatar: '👑', managerId: null,
-        email: 'sonia@hr.com', password: '123',
-        statusHistory: ['ok', 'ok', 'ok'],
-        checklists: {},
-        companyId: 1,
-        isAdmin: true,
-        cadenceDays: 15,
-        lastPulse: null, // Manager's last capture
-        lastSelfPulse: null, // Employee's last self-capture
-    },
-    {
-        id: 2, name: 'Juan Pérez', role: 'CTO', status: 'ok', avatar: '👨‍💻', managerId: 1,
-        email: 'juan@hr.com', password: '123',
-        statusHistory: ['ok', 'attention', 'ok'],
-        checklists: {},
-        companyId: 1,
-        cadenceDays: 15,
-    },
-    {
-        id: 3, name: 'Maria García', role: 'Product VP', status: 'attention', avatar: '👩‍💼', managerId: 1,
-        email: 'maria@hr.com', password: '123',
-        statusHistory: ['ok', 'ok', 'attention'],
-        checklists: {},
-        companyId: 1,
-        cadenceDays: 15,
-    },
-    {
-        id: 4, name: 'Alex Smith', role: 'Senior Designer', status: 'risk', avatar: '🎨', managerId: 3,
-        email: 'alex@hr.com', password: '123',
-        statusHistory: ['attention', 'risk', 'risk'],
-        checklists: {},
-        companyId: 1,
-        cadenceDays: 15,
-    },
-    {
-        id: 5, name: 'Lucas Skywalker', role: 'Frontend Dev', status: 'ok', avatar: '🚀', managerId: 2,
-        email: 'lucas@hr.com', password: '123',
-        statusHistory: ['ok', 'ok', 'ok'],
-        checklists: {},
-        companyId: 1,
-        cadenceDays: 15,
-    },
-    {
-        id: 101, name: 'Sofía', role: 'HR Manager', status: 'ok', avatar: '👩‍💼', managerId: null,
-        email: 'sofiacbmg@gmail.com', password: '123',
-        statusHistory: ['ok'],
-        checklists: {},
-        companyId: 202,
-        isAdmin: true,
-        cadenceDays: 15,
-    },
-    {
-        id: 102, name: 'José', role: 'Design Lead', status: 'ok', avatar: '🎨', managerId: 101,
-        email: 'moliner.jose@gmail.com', password: '123',
-        statusHistory: ['ok'],
-        checklists: {},
-        companyId: 202,
-        cadenceDays: 15,
-    },
-];
-
 export const authenticate = (employees, email, password) => {
     return employees.find(e => e.email === email && e.password === password);
 };
