@@ -42,6 +42,7 @@ function App() {
   const [selfPulseData, setSelfPulseData] = useState({ mood: 5, alignment: 5, energy: 5, blockers: [], comments: '' });
   const [currentMenu, setCurrentMenu] = useState('home'); // 'home' or 'profile'
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [requestingPulseFor, setRequestingPulseFor] = useState(null);
 
   const addToast = (message) => {
     const id = Date.now();
@@ -538,15 +539,26 @@ function App() {
                       <td className="actions-cell">
                         <button className="btn-icon" onClick={() => { setSelectedCaptureEmp(emp); setIsCaptureOpen(true); }} title="Captura">📝</button>
                         <button className="btn-icon" onClick={() => { setHistory([...history, emp]); setViewedManagerId(emp.id); }} title="Jerarquía">🔍</button>
-                        <button className="btn-icon" onClick={async () => {
-                          try {
-                            await api.post('/pulses/request', { employeeId: emp.id });
-                            addToast(`📧 Email real enviado a ${emp.email}: Solicitud de pulso.`);
-                          } catch (err) {
-                            console.error("Request pulse failed", err);
-                            addToast(`❌ Error al enviar email a ${emp.name}`);
-                          }
-                        }} title="Solicitar Pulso">✉️</button>
+                        <button
+                          className={`btn-icon ${requestingPulseFor === emp.id ? 'loading' : ''}`}
+                          onClick={async () => {
+                            if (requestingPulseFor) return;
+                            setRequestingPulseFor(emp.id);
+                            try {
+                              await api.post('/pulses/request', { employeeId: emp.id });
+                              addToast(`📧 Email real enviado a ${emp.email}: Solicitud de pulso.`);
+                            } catch (err) {
+                              console.error("Request pulse failed", err);
+                              addToast(`❌ Error al enviar email a ${emp.name}`);
+                            } finally {
+                              setRequestingPulseFor(null);
+                            }
+                          }}
+                          title="Solicitar Pulso"
+                          disabled={requestingPulseFor === emp.id}
+                        >
+                          {requestingPulseFor === emp.id ? <span className="spinner-mini"></span> : '✉️'}
+                        </button>
                         <button className="btn-text" onClick={() => { setActiveRes(getResolution(emp.status)); setResEmployeeId(emp.id); }}>Guía 💡</button>
                         <button className="btn-icon delete-btn" onClick={() => handleDeleteEmployee(emp.id, emp.name)} title="Eliminar">🗑️</button>
                       </td>
