@@ -69,8 +69,13 @@ router.post('/request', auth, async (req, res) => {
         const employee = await Employee.findOne({ id: employeeId });
         if (!employee) return res.status(404).json({ msg: 'Employee not found' });
 
+        const frontendUrl = process.env.FRONTEND_URL;
+        if (!frontendUrl) {
+            console.error('❌ FRONTEND_URL is not defined in environment variables');
+        }
+
         const token = Buffer.from(`${employee.email}:${employee.id}`).toString('base64');
-        pulseLink = `${process.env.FRONTEND_URL}/?pulse_token=${token}`;
+        pulseLink = `${frontendUrl || 'https://TU-URL-DE-VERCEL.app'}/?pulse_token=${token}`;
 
         await sendPulseEmail(employee.email, employee.name, pulseLink);
         res.json({ msg: 'Email sent successfully', pulseLink });
