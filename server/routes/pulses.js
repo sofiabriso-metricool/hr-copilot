@@ -103,7 +103,7 @@ router.post('/request', auth, async (req, res) => {
 
         // Always return success and the link immediately
         res.json({
-            msg: 'Procesando envío... Si el correo no llega, usa este link:',
+            msg: 'Preparando envío... He generado el link manual por si el email falla.',
             pulseLink
         });
     } catch (err) {
