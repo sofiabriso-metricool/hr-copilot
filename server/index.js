@@ -5,36 +5,35 @@ const mongoose = require('mongoose');
 
 const app = express();
 
-// DEBUG: Log all requests to help troubleshooting in Render
+console.log('--- SERVER STARTING (Version: CORSReflect) ---');
+
+// DEBUG: Log all requests
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Origin: ${req.headers.origin}`);
     next();
 });
 
-// CORS configuration - Ultra-robust to avoid trailing slash mismatches
-let rawOrigin = process.env.FRONTEND_URL || '*';
-const origins = [rawOrigin];
-
-if (rawOrigin !== '*') {
-    if (rawOrigin.endsWith('/')) {
-        origins.push(rawOrigin.slice(0, -1));
-    } else {
-        origins.push(rawOrigin + '/');
-    }
-}
-
-// Ensure the specific URL from the error is also allowed
-if (!origins.includes('https://hr-copilot-mu.vercel.app')) {
-    origins.push('https://hr-copilot-mu.vercel.app');
-}
-
+// ULTRA-RESILIENT CORS: Reflect incoming origin to avoid any string mismatches
 const corsOptions = {
-    origin: rawOrigin === '*' ? '*' : origins,
+    origin: function (origin, callback) {
+        // If it's a request from our own tools (no origin) or our domains, allow it
+        if (!origin || origin.includes('vercel.app') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+            callback(null, true); // This will set Access-Control-Allow-Origin to the exact 'origin' string
+        } else {
+            // Check against FRONTEND_URL as final fallback
+            const feUrl = process.env.FRONTEND_URL;
+            if (feUrl && (origin === feUrl || origin === feUrl.replace(/\/$/, ''))) {
+                callback(null, true);
+            } else {
+                console.warn(`🔒 CORS Blocked for origin: ${origin}`);
+                callback(null, false);
+            }
+        }
+    },
     credentials: true,
     optionsSuccessStatus: 200
 };
 
-console.log('🛡️ CORS allowed origins:', origins);
 app.use(cors(corsOptions));
 app.use(express.json());
 
@@ -53,7 +52,7 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/pulses', pulseRoutes);
 
 app.get('/', (req, res) => {
-    res.send('HR Co-pilot API is running...');
+    res.send('HR Co-pilot API is running (CORSReflect)...');
 });
 
 const PORT = process.env.PORT || 5000;
