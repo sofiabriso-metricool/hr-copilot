@@ -8,29 +8,54 @@ const nodemailer = require('nodemailer');
 
 // Helper to send email
 const sendPulseEmail = async (email, name, link) => {
-    const { EMAIL_USER, EMAIL_PASS } = process.env;
+    const { EMAIL_USER, EMAIL_PASS, RESEND_API_KEY } = process.env;
 
-    if (!EMAIL_USER || !EMAIL_PASS) {
-        console.error('❌ EMAIL ERROR: Missing EMAIL_USER or EMAIL_PASS');
-        throw new Error('Variables de entorno EMAIL_USER o EMAIL_PASS no configuradas en Render.');
+    // 1. Prioritize Resend (HTTP API - Recommended for Render)
+    if (RESEND_API_KEY) {
+        console.log(`🚀 Using Resend API for email to ${email}`);
+        try {
+            // Using a simple fetch/axios call to Resend to avoid extra dependencies for now
+            const axios = require('axios');
+            await axios.post('https://api.resend.com/emails', {
+                from: 'HR Co-pilot <onboarding@resend.dev>', // Default for free tier
+                to: email,
+                subject: 'HR Co-pilot: Tu Pulso de Salud Laboral',
+                html: `
+                  <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+                    <h2 style="color: #6366f1;">Hola ${name},</h2>
+                    <p>Queremos saber cómo te sientes hoy para asegurarnos de que todo va bien.</p>
+                    <p>Por favor, rellena tu pulso haciendo clic en el siguiente botón:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                      <a href="${link}" style="padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Rellenar mi Pulso 🚀</a>
+                    </div>
+                    <p style="color: #64748b; font-size: 0.9rem;">Este es un mensaje automático de HR Co-pilot. ¡Gracias por tu sinceridad!</p>
+                  </div>
+                `
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${RESEND_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            console.log('✅ Resend: Email sent');
+            return;
+        } catch (error) {
+            console.error('❌ Resend Error:', error.response?.data || error.message);
+            // Fallback to SMTP if Resend fails
+        }
     }
 
-    console.log(`📧 Intentando enviar email a: ${email}...`);
+    // 2. Fallback to Nodemailer (SMTP)
+    if (!EMAIL_USER || !EMAIL_PASS) {
+        console.error('❌ EMAIL ERROR: Missing credentials');
+        return; // Silent fail to allow link fallback in UI
+    }
 
     let transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
         port: 587,
-        secure: false, // Use STARTTLS
-        auth: {
-            user: EMAIL_USER,
-            pass: EMAIL_PASS
-        },
-        tls: {
-            rejectUnauthorized: false // Helps in restricted cloud envs
-        },
-        connectionTimeout: 20000,
-        greetingTimeout: 20000,
-        socketTimeout: 30000
+        auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+        tls: { rejectUnauthorized: false }
     });
 
     let mailOptions = {
@@ -38,25 +63,17 @@ const sendPulseEmail = async (email, name, link) => {
         to: email,
         subject: 'HR Co-pilot: Tu Pulso de Salud Laboral',
         html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
-        <h2 style="color: #6366f1;">Hola ${name},</h2>
-        <p>Queremos saber cómo te sientes hoy para asegurarnos de que todo va bien.</p>
-        <p>Por favor, rellena tu pulso haciendo clic en el siguiente botón:</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${link}" style="padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Rellenar mi Pulso 🚀</a>
-        </div>
-        <p style="color: #64748b; font-size: 0.9rem;">Este es un mensaje automático de HR Co-pilot. ¡Gracias por tu sinceridad!</p>
-      </div>
-    `
+          <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+            <p>Hola ${name}, rellena tu pulso aquí: <a href="${link}">${link}</a></p>
+          </div>
+        `
     };
 
     try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Email enviado con éxito:', info.messageId);
-        return info;
+        await transporter.sendMail(mailOptions);
+        console.log('✅ SMTP: Email sent');
     } catch (error) {
-        console.error('❌ Error detallado de Nodemailer:', error);
-        throw error;
+        console.error('❌ SMTP Error:', error.message);
     }
 };
 
@@ -64,28 +81,28 @@ const sendPulseEmail = async (email, name, link) => {
 // @desc    Manager requests a pulse from employee (sends email)
 router.post('/request', auth, async (req, res) => {
     const { employeeId } = req.body;
-    let pulseLink = '';
     try {
         const employee = await Employee.findOne({ id: employeeId });
         if (!employee) return res.status(404).json({ msg: 'Employee not found' });
 
-        const frontendUrl = process.env.FRONTEND_URL;
-        if (!frontendUrl) {
-            console.error('❌ FRONTEND_URL is not defined in environment variables');
-        }
-
+        const frontendUrl = process.env.FRONTEND_URL || 'https://tu-app.vercel.app';
         const token = Buffer.from(`${employee.email}:${employee.id}`).toString('base64');
-        pulseLink = `${frontendUrl || 'https://TU-URL-DE-VERCEL.app'}/?pulse_token=${token}`;
+        const pulseLink = `${frontendUrl}/?pulse_token=${token}`;
 
-        await sendPulseEmail(employee.email, employee.name, pulseLink);
-        res.json({ msg: 'Email sent successfully', pulseLink });
-    } catch (err) {
-        console.error("Pulse Request Backend Error:", err);
-        res.status(500).json({
-            msg: 'Server error sending email',
-            error: err.message,
-            pulseLink: pulseLink
+        // FIRE AND FORGET: Start sending email but DON'T wait for it.
+        // This prevents Render's timeout and the "Network Error".
+        sendPulseEmail(employee.email, employee.name, pulseLink).catch(err => {
+            console.error("Async Email Error:", err.message);
         });
+
+        // Always return success and the link immediately
+        res.json({
+            msg: 'Procesando envío... Si el correo no llega, usa este link:',
+            pulseLink
+        });
+    } catch (err) {
+        console.error("Request pulse error:", err);
+        res.status(500).json({ msg: 'Server error' });
     }
 });
 
