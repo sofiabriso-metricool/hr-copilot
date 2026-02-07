@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const dns = require('dns');
 if (dns.setServers) {

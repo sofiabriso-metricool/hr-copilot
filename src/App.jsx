@@ -44,6 +44,7 @@ function App() {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [requestingPulseFor, setRequestingPulseFor] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [fallbackLink, setFallbackLink] = useState(null);
 
   const addToast = (message) => {
     const id = Date.now();
@@ -578,6 +579,28 @@ function App() {
       </main>
 
       {/* Modals */}
+      {/* Pulse Link Fallback Modal */}
+      {fallbackLink && (
+        <div className="modal-overlay">
+          <div className="glass-card modal-content" style={{ maxWidth: '400px', textAlign: 'center' }}>
+            <header className="modal-header">
+              <h3>🔗 Link de Pulso para {fallbackLink.name}</h3>
+            </header>
+            <p>El servidor ha bloqueado el envío del email (Proxy de Render), pero puedes enviarle este link manualmente por WhatsApp o Slack:</p>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '5px', wordBreak: 'break-all', margin: '15px 0', fontSize: '14px' }}>
+              {fallbackLink.link}
+            </div>
+            <div className="modal-actions" style={{ justifyContent: 'center', gap: '10px' }}>
+              <button className="btn btn-primary" onClick={() => {
+                navigator.clipboard.writeText(fallbackLink.link);
+                addToast("✅ Link copiado al portapapeles");
+              }}>Copiar Link</button>
+              <button className="btn btn-secondary" onClick={() => setFallbackLink(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <RadarModal
         isOpen={isRadarOpen}
         employee={selectedRadarEmp}

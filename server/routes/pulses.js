@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+require('dotenv').config();
 const auth = require('../middleware/auth');
 const Pulse = require('../models/Pulse');
 const Employee = require('../models/Employee');
@@ -63,18 +64,23 @@ const sendPulseEmail = async (email, name, link) => {
 // @desc    Manager requests a pulse from employee (sends email)
 router.post('/request', auth, async (req, res) => {
     const { employeeId } = req.body;
+    let pulseLink = '';
     try {
         const employee = await Employee.findOne({ id: employeeId });
         if (!employee) return res.status(404).json({ msg: 'Employee not found' });
 
         const token = Buffer.from(`${employee.email}:${employee.id}`).toString('base64');
-        const pulseLink = `${process.env.FRONTEND_URL}/?pulse_token=${token}`;
+        pulseLink = `${process.env.FRONTEND_URL}/?pulse_token=${token}`;
 
         await sendPulseEmail(employee.email, employee.name, pulseLink);
-        res.json({ msg: 'Email sent successfully' });
+        res.json({ msg: 'Email sent successfully', pulseLink });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: 'Server error sending email', error: err.message });
+        console.error("Pulse Request Backend Error:", err);
+        res.status(500).json({
+            msg: 'Server error sending email',
+            error: err.message,
+            pulseLink: pulseLink
+        });
     }
 });
 
