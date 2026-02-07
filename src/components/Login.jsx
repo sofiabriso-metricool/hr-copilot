@@ -77,8 +77,12 @@ function Login({ onLogin, onRegister, error }) {
 
                     {error && <p className="error-message">⚠️ {error}</p>}
 
-                    <button type="submit" className="btn btn-primary btn-block">
-                        {isRegistering ? 'Crear Empresa & Admin 🚀' : 'Entrar al Radar 🔒'}
+                    <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+                        {loading ? (
+                            <span className="spinner-mini" style={{ borderTopColor: 'white' }}></span>
+                        ) : (
+                            isRegistering ? 'Crear Empresa & Admin 🚀' : 'Entrar al Radar 🔒'
+                        )}
                     </button>
                 </form>
 

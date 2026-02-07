@@ -9,6 +9,11 @@ const Employee = require('../models/Employee');
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
+    if (!process.env.JWT_SECRET) {
+        console.error('CRITICAL: JWT_SECRET is not defined in environment variables');
+        return res.status(500).json({ msg: 'Server Configuration Error' });
+    }
+
     try {
         let user = await Employee.findOne({ email });
         if (!user) {

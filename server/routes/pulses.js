@@ -7,7 +7,12 @@ const nodemailer = require('nodemailer');
 
 // Helper to send email
 const sendPulseEmail = async (email, name, link) => {
-    const { EMAIL_USER, EMAIL_PASS } = process.env;
+    const { EMAIL_USER, EMAIL_PASS, SIMULATION_MODE } = process.env;
+
+    if (SIMULATION_MODE === 'true') {
+        console.log(`[SIMULATION] Sending email to ${email} with link: ${link}`);
+        return { messageId: 'simulated-id' };
+    }
 
     if (!EMAIL_USER || !EMAIL_PASS) {
         throw new Error('Missing EMAIL_USER or EMAIL_PASS environment variables');
@@ -18,7 +23,10 @@ const sendPulseEmail = async (email, name, link) => {
         auth: {
             user: EMAIL_USER,
             pass: EMAIL_PASS // For Gmail, this must be an App Password if 2FA is enabled
-        }
+        },
+        connectionTimeout: 10000, // 10 seconds
+        greetingTimeout: 5000,
+        socketTimeout: 15000
     });
 
     let mailOptions = {

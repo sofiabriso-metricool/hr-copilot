@@ -43,6 +43,7 @@ function App() {
   const [currentMenu, setCurrentMenu] = useState('home'); // 'home' or 'profile'
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [requestingPulseFor, setRequestingPulseFor] = useState(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   const addToast = (message) => {
     const id = Date.now();
@@ -207,6 +208,8 @@ function App() {
 
   // Auth Handlers
   const handleLogin = async (email, password) => {
+    setIsAuthLoading(true);
+    setAuthError('');
     try {
       const res = await api.post('/auth/login', { email, password });
       const { token, user } = res.data;
@@ -219,9 +222,11 @@ function App() {
       // Load all employees
       const empRes = await api.get('/employees');
       setEmployees(empRes.data);
-      setAuthError('');
     } catch (err) {
-      setAuthError(err.response?.data?.msg || 'Error al iniciar sesión');
+      console.error("Login Error:", err);
+      setAuthError(err.response?.data?.msg || 'Error al iniciar sesión. Comprueba tu conexión.');
+    } finally {
+      setIsAuthLoading(false);
     }
   };
 
@@ -349,7 +354,7 @@ function App() {
 
 
   if (!currentUser) {
-    return <Login onLogin={handleLogin} onRegister={handleRegisterCompany} error={authError} />;
+    return <Login onLogin={handleLogin} onRegister={handleRegisterCompany} error={authError} loading={isAuthLoading} />;
   }
 
 
